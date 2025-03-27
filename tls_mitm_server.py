@@ -6,7 +6,7 @@ import argparse
 parser = argparse.ArgumentParser(description="Program that acts as a man-in-the-middle TLS server")
 parser.add_argument("-l", "--listenport", type=int, default=443, help='Port to listen on, defaults to 443')
 parser.add_argument("-p", "--port", type=int, default=443, help="Port to connect to, defaults to 443")
-parser.add_argument("--keylogfile", type=str, help="Filename for logging session keys")
+parser.add_argument("--keylogfile", type=str, help="Filename for logging session keys, will log if set, otherwise won't")
 parser.add_argument("-H", "--host", type=str, required=True, help="Target host address or IP")
 args = parser.parse_args()
 
@@ -15,15 +15,17 @@ MITM_PORT = args.listenport  # MITM server port, this is the port this program l
 TARGET_HOST = args.host      # Server to connect to
 TARGET_PORT = args.port      # Port to connect to
 
-# Certificate, generate with: openssl req -x509 -newkey rsa:4096 -keyout mitm.key -out mitm.pem -days 36500 -nodes
+# Dummy certificate, generate with: openssl req -x509 -newkey rsa:4096 -keyout mitm.key -out mitm.pem -days 36500 -nodes
 MITM_CERT = "mitm.pem"
 MITM_KEY = "mitm.key"
+
 
 def handle_client(client_conn):
     """Handles communication between client and real server."""
     # Establish a secure connection to the real server
     context = ssl.create_default_context()
     if hasattr(context, "keylog_filename") and args.keylogfile:
+        print("Logging session keys to", args.keylogfile)
         context.keylog_filename = args.keylogfile
     context.check_hostname = False  # Disable hostname check
     context.verify_mode = ssl.CERT_NONE  # Disable certificate verification
@@ -57,6 +59,6 @@ def start_mitm_server():
         client_conn, _ = server_socket.accept()
         threading.Thread(target=handle_client, args=(client_conn,)).start()
 
+
 if __name__ == "__main__":
     start_mitm_server()
-
